@@ -1,0 +1,231 @@
+---
+title: "Data to graph"
+author: "Redacted"
+date: "10/8/2021"
+output: pdf_document
+---
+
+```{r}
+data <- read.csv("csv_files/all_flat.csv")
+
+data$COLLECDATEFORMAT <- as.Date(data$COLLECDATE, format="%m/%d/%y")
+data$RESULTTYPE <- trimws(data$RESULTTYPE)
+data$MIR <- (data$RESULTTYPE=="POSITIVE") / data$POOLSIZE
+data$LATLONG <- paste(data$LATITUDE, data$LONGITUDE, sep=", ")
+data$TRAPID <- as.integer(as.factor(data$LATLONG))-1
+# note days not always consecutive
+data$DAY <- as.integer(as.factor(data$COLLECDATEFORMAT))
+data$MONTH <- as.numeric(strftime(data$COLLECDATEFORMAT, "%m"))
+
+data$NEXTWKPOS <- rep(0, nrow(data))
+data$WEEK_POS_0 <- rep(0, nrow(data))
+data$WEEK_POS_7 <- rep(0, nrow(data))
+data$WEEK_POS_14 <- rep(0, nrow(data))
+data$WEEK_POS_21 <- rep(0, nrow(data))
+data$WEEK_POS_28 <- rep(0, nrow(data))
+data$WEEK_POS_35 <- rep(0, nrow(data))
+data$WEEK_POS_42 <- rep(0, nrow(data))
+
+data <- data[c("DAY", "COLLECDATEFORMAT", "MONTH", "LATITUDE", "LONGITUDE", "RESULTTYPE", "POOLSIZE", "NEXTWKPOS", "WEEK_POS_0", "WEEK_POS_7", "WEEK_POS_14", "WEEK_POS_21", "WEEK_POS_28", "WEEK_POS_35", "WEEK_POS_42", "TRAPID", "MIR")]
+data <- data[!duplicated(data[c("TRAPID", "COLLECDATEFORMAT")]), ]
+```
+
+```{r}
+top_traps <- order(table(data$TRAPID), decreasing=TRUE)[1:floor(0.1*length(unique(data$TRAPID)))]-1
+data <- data[data$TRAPID %in% top_traps, ]
+```
+
+```{r}
+# dataset available on NOAA website
+w_data <- read.csv("csv_files/ohare_summary_comp_NA_0.csv")
+w_data$COLLECDATEFORMAT <- as.Date(w_data$COLLECDATEFORMAT, format="%Y-%m-%d")
+
+lag_vect <- c(7, 14, 21, 28, 35, 42)
+lag_w_data <- w_data
+for(lag in lag_vect) {
+  lag_w_data_temp <- w_data
+  lag_w_data_temp["COLLECDATEFORMAT"] <- lag_w_data_temp["COLLECDATEFORMAT"]+lag
+  lag_w_data <- merge(lag_w_data, lag_w_data_temp, by="COLLECDATEFORMAT", suffixes=c("", lag))
+}
+```
+
+```{r}
+data <- merge(data, lag_w_data, by="COLLECDATEFORMAT")
+```
+
+```{r}
+dates <- unique(data$COLLECDATEFORMAT)
+day_data_comp <- NULL
+date_len <- length(dates)
+
+for(n in seq_len(date_len)) {
+  if((n%%100==0)||(n==date_len)) {
+    print(sprintf("%d of %d", n, date_len))
+    flush.console()
+  }
+  date <- dates[n]
+  day_data <- data[data$COLLECDATEFORMAT==date, ]
+  week_plus_7 <- data[(data$COLLECDATEFORMAT>=date+as.difftime(7,  units="days")) &
+      (data$COLLECDATEFORMAT<=date+as.difftime(13,  units="days")), ]
+  week_0 <- data[(data$COLLECDATEFORMAT>=date-as.difftime(6,  units="days")) &
+      (data$COLLECDATEFORMAT<=date), ]
+  week_7 <- data[(data$COLLECDATEFORMAT>=date-as.difftime(13,  units="days")) &
+      (data$COLLECDATEFORMAT<=date-as.difftime(7,  units="days")), ]
+  week_14 <- data[(data$COLLECDATEFORMAT>=date-as.difftime(20,  units="days")) &
+      (data$COLLECDATEFORMAT<=date-as.difftime(14,  units="days")), ]
+  week_21 <- data[(data$COLLECDATEFORMAT>=date-as.difftime(27,  units="days")) &
+      (data$COLLECDATEFORMAT<=date-as.difftime(21,  units="days")), ]
+  week_28 <- data[(data$COLLECDATEFORMAT>=date-as.difftime(34,  units="days")) &
+      (data$COLLECDATEFORMAT<=date-as.difftime(28,  units="days")), ]
+  week_35 <- data[(data$COLLECDATEFORMAT>=date-as.difftime(41,  units="days")) &
+      (data$COLLECDATEFORMAT<=date-as.difftime(35,  units="days")), ]
+  week_42 <- data[(data$COLLECDATEFORMAT>=date-as.difftime(48,  units="days")) &
+      (data$COLLECDATEFORMAT<=date-as.difftime(42,  units="days")), ]
+  
+  for(trap in day_data$TRAPID) {
+    day_data$NEXTWKPOS[day_data$TRAPID==trap] <- as.numeric(sum(week_plus_7$RESULTTYPE[week_plus_7$TRAPID==trap]=="POSITIVE")>0)
+    day_data$WEEK_POS_0[day_data$TRAPID==trap] <- as.numeric(sum(week_0$RESULTTYPE[week_0$TRAPID==trap]=="POSITIVE")>0)
+    day_data$WEEK_POS_7[day_data$TRAPID==trap] <- as.numeric(sum(week_7$RESULTTYPE[week_7$TRAPID==trap]=="POSITIVE")>0)
+    day_data$WEEK_POS_14[day_data$TRAPID==trap] <- as.numeric(sum(week_14$RESULTTYPE[week_14$TRAPID==trap]=="POSITIVE")>0)
+    day_data$WEEK_POS_21[day_data$TRAPID==trap] <- as.numeric(sum(week_21$RESULTTYPE[week_21$TRAPID==trap]=="POSITIVE")>0)
+    day_data$WEEK_POS_28[day_data$TRAPID==trap] <- as.numeric(sum(week_28$RESULTTYPE[week_28$TRAPID==trap]=="POSITIVE")>0)
+    day_data$WEEK_POS_35[day_data$TRAPID==trap] <- as.numeric(sum(week_35$RESULTTYPE[week_35$TRAPID==trap]=="POSITIVE")>0)
+    day_data$WEEK_POS_42[day_data$TRAPID==trap] <- as.numeric(sum(week_42$RESULTTYPE[week_42$TRAPID==trap]=="POSITIVE")>0)
+  }
+  day_data_comp <- rbind.data.frame(day_data_comp, day_data)
+}
+
+data <- day_data_comp
+```
+
+```{r}
+# neighbors per node
+k <- 5
+
+library(geosphere)
+
+day_data_comp <- NULL
+
+for(n in seq_len(date_len)) {
+  if((n%%100==0)||(n==date_len)) {
+    print(sprintf("%d of %d", n, date_len))
+    flush.console()
+  }
+  date <- dates[n]
+  day_data <- data[data$COLLECDATEFORMAT==date, ]
+  edge_list <- rep("", nrow(day_data))
+  dist_list <- rep("", nrow(day_data))
+  nodelabels <- seq(nrow(day_data))-1
+  for(i in nodelabels) {
+    other_node_pos <- day_data[nodelabels[nodelabels!=i]+1, c("LONGITUDE", "LATITUDE")]
+    if(nrow(other_node_pos)>0) {
+      other_node_pos$DIST <- distHaversine(other_node_pos, c(day_data[i+1, "LONGITUDE"], day_data[i+1, "LATITUDE"]), r=6378.137)
+    } else {
+      other_node_pos$DIST <- numeric(0)
+    }
+    other_node_pos$RANK <- rank(other_node_pos$DIST, ties.method = 'random')
+    neighbors <- nodelabels[nodelabels!=i][other_node_pos$RANK<=k & other_node_pos$DIST<100]
+    neighbors_dists <- format(other_node_pos$DIST[other_node_pos$RANK<=k & other_node_pos$DIST<100], digits=5, trim=TRUE)
+    edge_list[i+1] <- paste(neighbors, collapse=", ")
+    dist_list[i+1] <- paste(neighbors_dists, collapse=", ")
+  }
+  day_data$NODELABEL <- nodelabels
+  day_data$EDGES <- edge_list
+  day_data$DISTS <- dist_list
+  day_data_comp <- rbind.data.frame(day_data_comp, day_data)
+}
+```
+
+```{r}
+# seen_nodes <- NULL
+
+lines_mat1 <- NULL
+# 16 Jul 2019
+data_plot1 <- day_data_comp[data$DAY==1746, c("COLLECDATEFORMAT", "LATITUDE", "LONGITUDE", "NEXTWKPOS", "WEEK_POS_0", "NODELABEL", "EDGES", "DISTS")]
+
+neighbors <- strsplit(data_plot1$EDGES, ", ")
+
+for(node in data_plot1$NODELABEL) {
+  orig_point <- data_plot1[node+1, c("LONGITUDE", "LATITUDE")]
+  #seen_nodes <- c(seen_nodes, data_plot$NODELABEL[node+1])
+  dest_points <- data_plot1[as.numeric(neighbors[[node+1]])+1, c("NODELABEL", "LONGITUDE", "LATITUDE")]
+  for(i in seq_len(nrow(dest_points))) {
+    #if(!(dest_points$NODELABEL[i]%in%seen_nodes)) {
+    lines_mat1 <- rbind.data.frame(lines_mat1, c(orig_point, dest_points[i, c("LONGITUDE", "LATITUDE")]))
+    #}
+  }
+}
+colnames(lines_mat1) <- c("lon1", "lat1", "lon2", "lat2")
+
+lines_mat2 <- NULL
+# 17 Jul 2019
+data_plot2 <- day_data_comp[data$DAY==1747, c("COLLECDATEFORMAT", "LATITUDE", "LONGITUDE", "NEXTWKPOS", "WEEK_POS_0", "NODELABEL", "EDGES", "DISTS")]
+
+neighbors <- strsplit(data_plot2$EDGES, ", ")
+
+for(node in data_plot2$NODELABEL) {
+  orig_point <- data_plot2[node+1, c("LONGITUDE", "LATITUDE")]
+  #seen_nodes <- c(seen_nodes, data_plot$NODELABEL[node+1])
+  dest_points <- data_plot2[as.numeric(neighbors[[node+1]])+1, c("NODELABEL", "LONGITUDE", "LATITUDE")]
+  for(i in seq_len(nrow(dest_points))) {
+    #if(!(dest_points$NODELABEL[i]%in%seen_nodes)) {
+    lines_mat2 <- rbind.data.frame(lines_mat2, c(orig_point, dest_points[i, c("LONGITUDE", "LATITUDE")]))
+    #}
+  }
+}
+colnames(lines_mat2) <- c("lon1", "lat1", "lon2", "lat2")
+
+lines_mat3 <- NULL
+# 18 Jul 2019
+data_plot3 <- day_data_comp[data$DAY==1748, c("COLLECDATEFORMAT", "LATITUDE", "LONGITUDE", "NEXTWKPOS", "WEEK_POS_0", "NODELABEL", "EDGES", "DISTS")]
+
+neighbors <- strsplit(data_plot3$EDGES, ", ")
+
+for(node in data_plot3$NODELABEL) {
+  orig_point <- data_plot3[node+1, c("LONGITUDE", "LATITUDE")]
+  #seen_nodes <- c(seen_nodes, data_plot$NODELABEL[node+1])
+  dest_points <- data_plot3[as.numeric(neighbors[[node+1]])+1, c("NODELABEL", "LONGITUDE", "LATITUDE")]
+  for(i in seq_len(nrow(dest_points))) {
+    #if(!(dest_points$NODELABEL[i]%in%seen_nodes)) {
+    lines_mat3 <- rbind.data.frame(lines_mat3, c(orig_point, dest_points[i, c("LONGITUDE", "LATITUDE")]))
+    #}
+  }
+}
+colnames(lines_mat3) <- c("lon1", "lat1", "lon2", "lat2")
+
+lines_mat4 <- NULL
+# 19 Jul 2019
+data_plot4 <- day_data_comp[data$DAY==1749, c("COLLECDATEFORMAT", "LATITUDE", "LONGITUDE", "NEXTWKPOS", "WEEK_POS_0", "NODELABEL", "EDGES", "DISTS")]
+
+neighbors <- strsplit(data_plot4$EDGES, ", ")
+
+for(node in data_plot4$NODELABEL) {
+  orig_point <- data_plot4[node+1, c("LONGITUDE", "LATITUDE")]
+  #seen_nodes <- c(seen_nodes, data_plot$NODELABEL[node+1])
+  dest_points <- data_plot4[as.numeric(neighbors[[node+1]])+1, c("NODELABEL", "LONGITUDE", "LATITUDE")]
+  for(i in seq_len(nrow(dest_points))) {
+    #if(!(dest_points$NODELABEL[i]%in%seen_nodes)) {
+    lines_mat4 <- rbind.data.frame(lines_mat4, c(orig_point, dest_points[i, c("LONGITUDE", "LATITUDE")]))
+    #}
+  }
+}
+colnames(lines_mat4) <- c("lon1", "lat1", "lon2", "lat2")
+```
+
+```{r}
+day_data_comp$DailyPrecipitation <- as.numeric(day_data_comp$DailyPrecipitation)
+day_data_comp$DailyPrecipitation[is.na(day_data_comp$DailyPrecipitation)] <- 0
+day_data_comp$DailyPrecipitation7 <- as.numeric(day_data_comp$DailyPrecipitation7)
+day_data_comp$DailyPrecipitation7[is.na(day_data_comp$DailyPrecipitation7)] <- 0
+day_data_comp$DailyPrecipitation14 <- as.numeric(day_data_comp$DailyPrecipitation14)
+day_data_comp$DailyPrecipitation14[is.na(day_data_comp$DailyPrecipitation14)] <- 0
+day_data_comp$DailyPrecipitation21 <- as.numeric(day_data_comp$DailyPrecipitation21)
+day_data_comp$DailyPrecipitation21[is.na(day_data_comp$DailyPrecipitation21)] <- 0
+day_data_comp$DailyPrecipitation28 <- as.numeric(day_data_comp$DailyPrecipitation28)
+day_data_comp$DailyPrecipitation28[is.na(day_data_comp$DailyPrecipitation28)] <- 0
+day_data_comp$DailyPrecipitation35 <- as.numeric(day_data_comp$DailyPrecipitation35)
+day_data_comp$DailyPrecipitation35[is.na(day_data_comp$DailyPrecipitation35)] <- 0
+day_data_comp$DailyPrecipitation42 <- as.numeric(day_data_comp$DailyPrecipitation42)
+day_data_comp$DailyPrecipitation42[is.na(day_data_comp$DailyPrecipitation42)] <- 0
+write.csv(day_data_comp, paste0("csv_files/all_graph_k_", k, "_haversine.csv"), row.names=FALSE)
+```
