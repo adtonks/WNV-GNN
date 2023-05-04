@@ -229,8 +229,12 @@ def calc_metrics(labels, probabilities, predictions):
     plt.ylabel("True positive rate (sensitivity)")
     plt.show()
     
-    metric_names = ["Accuracy", "Precision", "Recall", "F1", "Brier score", "AUC"]
-    metric_vals = [metrics.accuracy_score(labels, predictions)]     + list(metrics.precision_recall_fscore_support(labels, predictions, pos_label=1, average="binary")[:3])     + [metrics.brier_score_loss(labels, probabilities), metrics.roc_auc_score(labels, probabilities)]
+    metric_names = ["Accuracy", "Precision", "Recall", "F1", "Brier score", "AUC",
+                    "True negatives", "False positives", "False negatives", "True positives"]]
+    metric_vals = [metrics.accuracy_score(labels, predictions)] \
+    + list(metrics.precision_recall_fscore_support(labels, predictions, pos_label=1, average="binary")[:3]) \
+    + [metrics.brier_score_loss(labels, probabilities), metrics.roc_auc_score(labels, probabilities)] \
+    + list(metrics.confusion_matrix(labels, predictions).flatten())
     metrics_dict = dict(zip(metric_names, metric_vals))
     
     return metrics_dict
@@ -324,13 +328,6 @@ def run_xgboost_mod(lag_wks, k, vars_sel):
     return metrics_dict, labels, probabilities
 
 
-# In[35]:
-
-
-#train_data_loader, valid_data_loader, test_data_loader = load_data(5)
-run_nn_mod(1, "GNN", 1000, 10, 5, "all")
-
-
 # In[12]:
 
 
@@ -365,7 +362,7 @@ for vars_sel in ["all", "trap-only", "weather-only"]:
 # In[14]:
 
 
-# run GNN for remaining value for k as in kNN
+# run GNN for remaining value for k in kNN
 for vars_sel in ["all", "trap-only", "weather-only"]:
     for k in [2, 5, 10, 20]:
         train_data_loader, valid_data_loader, test_data_loader = load_data(k)
@@ -383,35 +380,6 @@ for vars_sel in ["all", "trap-only", "weather-only"]:
 results_df = pd.DataFrame(dict_lst)
 results_df.to_csv("results_table_all.csv", index=False)
 results_df
-
-
-# In[32]:
-
-
-# run GNN for remaining value for k as in kNN
-for vars_sel in ["all", "trap-only", "weather-only"]:
-    for k in [2, 5, 10, 20]:
-        train_data_loader, valid_data_loader, test_data_loader = load_data(k)
-        for lag_wks in range(1, 8):
-            metrics_dict, labels, probabilities = run_nn_mod(lag_wks, "GNN", n_epochs, early_stop_epochs, k, vars_sel)
-            dict_lst.append(metrics_dict)
-            labels_lst.append(labels)
-            probs_lst.append(probabilities)
-
-
-# In[34]:
-
-
-# run GNN for remaining value for k as in kNN
-for vars_sel in ["all"]:
-    for k in [5]:
-        train_data_loader, valid_data_loader, test_data_loader = load_data(k)
-        for lag_wks in range(1, 2):
-            metrics_dict, labels, probabilities = run_nn_mod(lag_wks, "GNN", n_epochs, early_stop_epochs, k, vars_sel)
-            dict_lst.append(metrics_dict)
-            labels_lst.append(labels)
-            probs_lst.append(probabilities)
-dict_lst[-1]
 
 
 # In[17]:
