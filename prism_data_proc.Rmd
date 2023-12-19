@@ -1,0 +1,79 @@
+---
+title: "Prism Data Format"
+author: "Adam Tonks"
+date: "2023-12-18"
+output: pdf_document
+---
+
+```{r}
+data_all <- NULL
+data_all <- rbind(data_all, read.csv("csv_files/prism_data/2008_format.csv"))
+data_all <- rbind(data_all, read.csv("csv_files/prism_data/2009_format.csv"))
+data_all <- rbind(data_all, read.csv("csv_files/prism_data/2010_format.csv"))
+data_all <- rbind(data_all, read.csv("csv_files/prism_data/2011_format.csv"))
+data_all <- rbind(data_all, read.csv("csv_files/prism_data/2012_format.csv"))
+data_all <- rbind(data_all, read.csv("csv_files/prism_data/2013_format.csv"))
+data_all <- rbind(data_all, read.csv("csv_files/prism_data/2014_format.csv"))
+data_all <- rbind(data_all, read.csv("csv_files/prism_data/2015_format.csv"))
+data_all <- rbind(data_all, read.csv("csv_files/prism_data/2016_format.csv"))
+data_all <- rbind(data_all, read.csv("csv_files/prism_data/2017_format.csv"))
+data_all <- rbind(data_all, read.csv("csv_files/prism_data/2018_format.csv"))
+data_all <- rbind(data_all, read.csv("csv_files/prism_data/2019_format.csv"))
+data_all <- rbind(data_all, read.csv("csv_files/prism_data/2020_format.csv"))
+data_all <- rbind(data_all, read.csv("csv_files/prism_data/2021_format.csv"))
+data_all$date <- as.Date(data_all$date)
+```
+
+
+```{r}
+lookup_table_0 <- read.csv("csv_files/prism_data/lookup_table.csv")
+lookup_table_0$date <- as.Date(lookup_table_0$date)
+
+lookup_table_7 <- lookup_table_0
+lookup_table_7$date <- lookup_table_7$date + 7
+
+lookup_table_14 <- lookup_table_0
+lookup_table_14$date <- lookup_table_14$date + 14
+
+lookup_table_21 <- lookup_table_0
+lookup_table_21$date <- lookup_table_21$date + 21
+
+lookup_table_28 <- lookup_table_0
+lookup_table_28$date <- lookup_table_28$date + 28
+
+lookup_table_35 <- lookup_table_0
+lookup_table_35$date <- lookup_table_35$date + 35
+
+lookup_table_42 <- lookup_table_0
+lookup_table_42$date <- lookup_table_42$date + 42
+```
+
+```{r}
+merged_table_0 <- merge(lookup_table_0, data_all)
+merged_table_7 <- merge(lookup_table_7, data_all)
+merged_table_14 <- merge(lookup_table_14, data_all)
+merged_table_21 <- merge(lookup_table_21, data_all)
+merged_table_28 <- merge(lookup_table_28, data_all)
+merged_table_35 <- merge(lookup_table_35, data_all)
+merged_table_42 <- merge(lookup_table_42, data_all)
+```
+
+```{r}
+out_table <- cbind.data.frame(merged_table_0,
+                              merged_table_7[, 5:8],
+                              merged_table_14[, 5:8],
+                              merged_table_21[, 5:8],
+                              merged_table_28[, 5:8],
+                              merged_table_35[, 5:8],
+                              merged_table_42[, 5:8])
+```
+
+```{r}
+names(out_table)[5:32] <- c("DailyPrecipitation", "DailyAverageDryBulbTemperature", "DailyCoolingDegreeDays", "DailyHeatingDegreeDays", "DailyPrecipitation7", "DailyAverageDryBulbTemperature7", "DailyCoolingDegreeDays7", "DailyHeatingDegreeDays7", "DailyPrecipitation14", "DailyAverageDryBulbTemperature14", "DailyCoolingDegreeDays14", "DailyHeatingDegreeDays14", "DailyPrecipitation21", "DailyAverageDryBulbTemperature21", "DailyCoolingDegreeDays21", "DailyHeatingDegreeDays21", "DailyPrecipitation28", "DailyAverageDryBulbTemperature28", "DailyCoolingDegreeDays28", "DailyHeatingDegreeDays28", "DailyPrecipitation35", "DailyAverageDryBulbTemperature35", "DailyCoolingDegreeDays35", "DailyHeatingDegreeDays35", "DailyPrecipitation42", "DailyAverageDryBulbTemperature42", "DailyCoolingDegreeDays42", "DailyHeatingDegreeDays42")
+```
+
+```{r}
+write.csv(out_table, "csv_files/prism_data/full_table.csv", row.names=FALSE)
+```
+
+
